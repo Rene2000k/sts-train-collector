@@ -9,3 +9,8 @@ while not connected:
         connected = True
     except (ConnectionRefusedError, TimeoutError):
         time.sleep(2)
+api.register("STS train collector", "Rene Klemm", "0.0.1", "desc")
+train_list = api.get_train_list()
+for train in train_list:
+    train_timetable = api.get_train_timetable(train.id)
+    print(train_timetable)
