@@ -1,7 +1,8 @@
 import logging
 import socket
-from datetime import time
-from typing import List
+import time
+from turtle import st
+from typing import List, Tuple
 import xmltodict
 
 from sts_api.models import *
@@ -120,10 +121,114 @@ class STSApi:
             next((track for track in track_list if track.name == stop_dict["@name"]), None),
             time(hour=int(arrival_time_splitted[0]), minute=int(arrival_time_splitted[1])) if arrival_time_splitted else None,
             time(hour=int(departure_time_splitted[0]), minute=int(departure_time_splitted[1])) if departure_time_splitted else None,
-            # TODO: flags parsen
-            stop_dict["@flags"]
+            self.parse_flags(stop_dict["@flags"])
         ))
+    
+    def parse_flags(self, flag_str: str) -> List[Flag]:
+        flags = []
+        
+        for count, char in enumerate(flag_str):
+            try:
+                flag_name = FlagName(char)
+            except ValueError:
+                continue
             
+            if flag_name in [
+                FlagName.EARLY_DEPARTURE, 
+                FlagName.DRIVE_THROUGH, 
+                FlagName.LOCO_CONVERTS, 
+                FlagName.START_LOAD_POINT, 
+                FlagName.CHANGE_DIRECTION
+            ]:
+                flags.append(Flag(flag_name))
+            
+            if flag_name in [FlagName.FOLLOW_UP_TRAIN, FlagName.GETS_SEPERATED, FlagName.GETS_COUPLED]:
+                # Flag structure = <flag>(<train-id>), e.g. E(78596)
+                number, values = self._get_flag_train_number(flag_str, count)
+                if number is not None and values is not None:
+                    flags.append(Flag(flag_name, number, values))
+    
+            if flag_name == FlagName.SCRIPT_FLAG:
+                num_count = count + 1
+                # check how big the number of the flag is (e.g. 9, 35, 896, ...)
+                while flag_str[num_count].isnumeric():
+                    num_count += 1
+                flags.append(Flag(flag_name, int(flag_str[count + 1:num_count + 1])))
+                
+            if flag_name == FlagName.LOCO_CHANGES:
+                number, values = self._get_flag_loco_changes_ENRs(flag_str, count)
+                if number is not None and values is not None:
+                    flags.append(Flag(flag_name, number, values))
+                
+        return flags      
+            
+    def _get_flag_train_number(self, flag_str: str, start: int) -> Tuple[Union[int, None], Union[list, None]]:
+        # Flag structure = <flag>(<train-id>), e.g. E(78596), F(1234)
+        # start should be <flag>
+        # returns start and end point of train number
+        
+        # Check for a number behind the flag (e.g. E1(59648)))
+        num_start = start + 1
+        while flag_str[num_start].isnumeric():
+            num_start += 1
+            
+        # parse train number
+        if flag_str[num_start] != "(":
+            self.log.error(f"Error while parsing flags: No train number for flag {flag_str[start]}")
+            return None, None
+        # start of train number
+        end = num_start + 1
+        while flag_str[end].isnumeric():
+            end += 1
+        if flag_str[end] != ")":
+            self.log.error(f"Error while parsing flags: Train number was not closed for flag {flag_str[start]}")
+            return None, None
+        
+        if num_start - start > 1:
+            return int(flag_str[start + 1:num_start]), [flag_str[num_start + 1:end]]
+        return 0, [flag_str[num_start + 1:end]]
+    
+    def _get_flag_loco_changes_ENRs(self, flag_str: str, start: int) -> Tuple[Union[int, None], Union[list, None]]:
+        # Flag structure = <flag>[<ENR1>][<ENR2>], e.g. W[12][532]
+        # start should be <flag>
+        # returns an optional number (e.g. 1 when W1) and both ENRs
+        
+        # Check for a number behind the flag (e.g. W1[1][2])
+        num_start = start + 1
+        while flag_str[num_start].isnumeric():
+            num_start += 1
+        
+        # 1. ENR
+        if flag_str[num_start] != "[":
+            self.log.error(f"Error while parsing flags: No ENR for loco change")
+            return None, None
+        # start of ENR 1
+        end = num_start + 1
+        while flag_str[end].isnumeric():
+            end += 1
+        if flag_str[end] != "]":
+            self.log.error(f"Error while parsing flags: ENR not closed")
+            return None, None
+        enr_1 = flag_str[num_start + 1:end]
+        
+        # 2. ENR
+        start_2 = end + 1
+        if flag_str[start_2] != "[":
+            self.log.error(f"Error while parsing flags: No 2. ENR for loco change")
+            return None, None
+        # start of ENR 2
+        end = start_2 + 1
+        while flag_str[end].isnumeric():
+            end += 1
+        if flag_str[end] != "]":
+            self.log.error(f"Error while parsing flags: 2. ENR not closed")
+            return None, None
+        enr_2 = flag_str[start_2 + 1:end]
+        
+        if num_start - start > 1:
+            return int(flag_str[start + 1:num_start]), [enr_1, enr_2]
+        return 0, [enr_1, enr_2]
+                                    
     def _send_and_recv(self, msg: str) -> str:
         self._send(msg)
         return self._recv()

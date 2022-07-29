@@ -1,11 +1,29 @@
 
 from datetime import time
 from enum import Enum
-from typing import List
+from typing import List, Union
 
-class Flags(Enum):
+class FlagName(Enum):
     EARLY_DEPARTURE = "A"
-    # TODO: flags
+    SCRIPT_FLAG = "B"
+    DRIVE_THROUGH = "D"
+    FOLLOW_UP_TRAIN = "E"
+    GETS_SEPERATED = "F"
+    GETS_COUPLED = "K"
+    LOCO_CONVERTS = "L"
+    START_LOAD_POINT = "P"
+    CHANGE_DIRECTION = "R"
+    LOCO_CHANGES = "W"
+    
+    
+class Flag:
+    def __init__(self, name: FlagName, number: int = 0, values: list = None) -> None:
+         self.name = name
+         self.number = number
+         self.values = values or []
+         
+    def __repr__(self) -> str:
+        return f"<flag name='{self.name}' number='{self.number}' values='{self.values}'/>"
 
 
 class Status:
@@ -39,7 +57,7 @@ class Track:
     
     
 class Stop:
-    def __init__(self, plan: Track, name: Track, arrival: time, departure: time, flags: List[Flags]) -> None:
+    def __init__(self, plan: Track, name: Track, arrival: time, departure: time, flags: List[Flag]) -> None:
         self.plan = plan
         self.name = name
         self.arrival = arrival
@@ -74,7 +92,6 @@ class Train:
     def __repr__(self) -> str:
         stop_repr = [str(stop) for stop in self.stops]
         stop_repr = "\n".join(stop_repr)
-        print(stop_repr)
         return "".join([f"<zug zid='{self.id}' name='{self.name}' verspaetung='{self.delay}' gleis='{self.next_track}' ",
                 f"plangleis='{self.planned_track}' von='{self.from_}' nach='{self.to}' sichtbar='{self.visible}' ",
                 f"amgleis='{self.currently_stopping}' usertext='{self.user_text}' usertextsender='{self.user_text_sender}' ",
