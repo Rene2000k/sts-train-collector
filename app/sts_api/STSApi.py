@@ -2,7 +2,7 @@ import logging
 import socket
 import time
 from turtle import st
-from typing import List, Tuple
+from typing import List, Tuple, Union
 import xmltodict
 
 from sts_api.models import *
@@ -77,12 +77,20 @@ class STSApi:
         resp = self._send_and_recv(req)
         resp_dict = self._parse_xml(resp)
         track_list = self.get_track_list()
+        
+        next_track = None
+        if "@gleis" in resp_dict["zugdetails"]:
+            next_track = next((track for track in track_list if track.name == resp_dict["zugdetails"]["@gleis"]), None) 
+        planned_tack = None
+        if "@plangleis" in resp_dict["zugdetails"]:
+            planned_tack = next((track for track in track_list if track.name == resp_dict["zugdetails"]["@plangleis"]), None)
+        
         return Train(
             int(resp_dict["zugdetails"]["@zid"]),
             resp_dict["zugdetails"]["@name"],
             int(resp_dict["zugdetails"]["@verspaetung"]),
-            next((track for track in track_list if track.name == resp_dict["zugdetails"]["@gleis"]), None),
-            next((track for track in track_list if track.name == resp_dict["zugdetails"]["@plangleis"]), None),
+            next_track,
+            planned_tack,
             resp_dict["zugdetails"]["@von"],
             resp_dict["zugdetails"]["@nach"],
             self._str_to_bool(resp_dict["zugdetails"]["@sichtbar"]),
@@ -121,10 +129,10 @@ class STSApi:
             next((track for track in track_list if track.name == stop_dict["@name"]), None),
             time(hour=int(arrival_time_splitted[0]), minute=int(arrival_time_splitted[1])) if arrival_time_splitted else None,
             time(hour=int(departure_time_splitted[0]), minute=int(departure_time_splitted[1])) if departure_time_splitted else None,
-            self.parse_flags(stop_dict["@flags"])
+            self._parse_flags(stop_dict["@flags"])
         ))
     
-    def parse_flags(self, flag_str: str) -> List[Flag]:
+    def _parse_flags(self, flag_str: str) -> List[Flag]:
         flags = []
         
         for count, char in enumerate(flag_str):
@@ -228,6 +236,77 @@ class STSApi:
         if num_start - start > 1:
             return int(flag_str[start + 1:num_start]), [enr_1, enr_2]
         return 0, [enr_1, enr_2]
+    
+    def create_event_listener(self, train_id: int, event: EventType):
+        # req = f"<ereignis zid='{train_id}' art='{event.value}'/>"
+        # resp = self._send_and_recv(req)
+        # TODO
+        pass
+    
+    def get_all_connection_elements(self) -> List[Connector]:
+        req = "<wege/>"
+        resp = self._send_and_recv(req)
+        resp_dict = self._parse_xml(resp)
+        
+        nodes = self._parse_nodes(resp_dict["wege"]["shape"])          
+        connectors = self._parse_connectors(resp_dict["wege"]["connector"], nodes)
+        return connectors
+                         
+    def _parse_nodes(self, node_list: list) -> List[Node]:
+        nodes = []
+        for node in node_list:
+            type = NodeType(int(node["@type"]))
+            name = node["@name"]
+            enr = None
+            if  "@enr" in node:
+                enr = node["@enr"]
+            nodes.append(Node(type, name, enr))
+        return nodes
+    
+    def _parse_connectors(self, connector_list: list, nodes: List[Node]) -> List[Connector]:
+        connectors = []
+        for connector in connector_list:
+            if "@enr1" in connector and "@enr2" in connector:
+                node_1 = self._find_node_by_enr(nodes, connector["@enr1"])
+                node_2 = self._find_node_by_enr(nodes, connector["@enr2"])
+            elif "@enr1" in connector and "@name2" in connector:
+                node_1 = self._find_node_by_enr(nodes, connector["@enr1"])
+                node_2 = self._find_node_by_name(nodes, connector["@name2"])
+            elif "@name1" in connector and "@enr2" in connector:
+                node_1 = self._find_node_by_name(nodes, connector["@name1"])
+                node_2 = self._find_node_by_enr(nodes, connector["@enr2"])
+            elif "@name1" in connector and "@name2" in connector:
+                node_1 = self._find_node_by_name(nodes, connector["@name1"])
+                node_2 = self._find_node_by_name(nodes, connector["@name2"])
+            else:
+                self.log.error(f"Error while parsing connector: No suiting node identifiers found for connector: {connector}")
+            
+            if node_1 is not None and node_2 is not None:
+                connectors.append(Connector(node_1, node_2))
+            elif node_1 is None:
+                if "@enr1" in connector:
+                    self.log.error(f"Error creating connector: Node with ENR {connector['@enr1']} not found")
+                else:
+                    self.log.error(f"Error creating connector: Node with name {connector['@name1']} not found")
+            elif node_2 is None:
+                if "@enr2" in connector:
+                    self.log.error(f"Error creating connector: Node with ENR {connector['@enr2']} not found")
+                else:
+                    self.log.error(f"Error creating connector: Node with name {connector['@name2']} not found")
+        
+        return connectors
+                
+    def _find_node_by_enr(self, nodes: List[Node], enr: int) -> Union[Node, None]:
+        for node in nodes:
+            if node.enr == enr:
+                return node
+        return None
+    
+    def _find_node_by_name(self, nodes: List[Node], name: str) -> Union[Node, None]:
+        for node in nodes:
+            if node.name == name:
+                return node
+        return None
                                     
     def _send_and_recv(self, msg: str) -> str:
         self._send(msg)

@@ -1,7 +1,7 @@
-
 from datetime import time
 from enum import Enum
 from typing import List, Union
+
 
 class FlagName(Enum):
     EARLY_DEPARTURE = "A"
@@ -15,6 +15,27 @@ class FlagName(Enum):
     CHANGE_DIRECTION = "R"
     LOCO_CHANGES = "W"
     
+    
+class EventType(Enum):
+    ENTRY = "einfahrt"
+    EXIT = "ausfahrt"
+    ARRIVAL = "ankunft"
+    DEPARTURE = "abfahrt"
+    RED_LIGHT_STOP = "rothalt"
+    SIGNAL_GOT_GREEN = "wurdegruen"
+    COUPLE = "kuppeln"
+    SEPERATE = "fluegeln"
+    
+
+class NodeType(Enum):
+    SIGNAL = 2
+    TRACK_LIMITING_SWITCH = 3
+    SWITCH = 4
+    TRACK = 5
+    ENTRY = 6
+    EXIT = 7
+    STOPPING_POINT = 12
+   
     
 class Flag:
     def __init__(self, name: FlagName, number: int = 0, values: list = None) -> None:
@@ -98,3 +119,22 @@ class Train:
                 f"hinweistext='{self.note_text}'>\n",
                 stop_repr,
                 "<zug/>"])
+
+     
+class Node:
+    def __init__(self, type: NodeType, name: str, enr: Union[int, None]) -> None:
+         self.type = type
+         self.name = name
+         self.enr = enr
+         
+    def __repr__(self) -> str:
+         return f"<shape type='{self.type}' name='{self.name}' enr='{self.enr}' />"
+         
+         
+class Connector:
+    def __init__(self, node_1: Node, node_2: Node) -> None:
+         self.node_1 = node_1
+         self.node_2 = node_2
+         
+    def __repr__(self) -> str:
+         return f"<connector node1='{self.node_1}' node2='{self.node_2}' />"
