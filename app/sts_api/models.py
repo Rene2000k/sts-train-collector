@@ -105,7 +105,7 @@ class Train:
             self.user_text = user_text
             self.user_text_sender = user_text_sender
             self.note_text = note_text
-            self.stops = []
+            self.stops: List[Stop] = []
             
     def add_stop(self, stop: Stop) -> None:
         self.stops.append(stop)
