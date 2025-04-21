@@ -1,7 +1,15 @@
 import time
+import logging
 from sts_api.STSApi import STSApi
 from TrainCollection import TrainCollection
 
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+
+logger = logging.getLogger(__name__)
 SLEEP_INTERVAL = 600
 
 
@@ -21,24 +29,24 @@ def run():
     
     try:
         while True:
-            print("Running train collection")
+            logger.info("Running train collection")
             train_list = api.get_train_list()
             for train in train_list:
                 train_timetable = api.get_train_timetable(train.id)
                 train_collection.add_train(train_timetable)
             train_collection.save()
-            print("Finished train collection")
+            logger.info("Finished train collection")
             time.sleep(SLEEP_INTERVAL)
     
     except KeyboardInterrupt:
-        print("Running train collection")
+        logger.info("Running train collection")
         train_list = api.get_train_list()
         for train in train_list:
             train_timetable = api.get_train_timetable(train.id)
             train_collection.add_train(train_timetable)
         train_collection.save()
-        print("Finished train collection")
+        logger.info("Finished train collection")
 
 if __name__ == "__main__":
-    print("Starting STS Train Collector")
+    logger.info("Starting STS Train Collector")
     run()

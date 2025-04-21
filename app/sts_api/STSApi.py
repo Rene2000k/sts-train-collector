@@ -1,11 +1,10 @@
 import logging
 import socket
-import time
-from turtle import st
+from datetime import time
 from typing import List, Tuple, Union
 import xmltodict
 
-from sts_api.models import *
+from sts_api.models import Flag, FlagName, Node, NodeType, SignalBoxInfo, Status, Train, Track, Connector, EventType, Stop
 
 class STSApi:
     HOST = "localhost"
@@ -208,21 +207,21 @@ class STSApi:
         
         # 1. ENR
         if flag_str[num_start] != "[":
-            self.log.error(f"Error while parsing flags: No ENR for loco change")
+            self.log.error(f"Error while parsing flags: No ENR for loco change: {flag_str}")
             return None, None
         # start of ENR 1
         end = num_start + 1
         while flag_str[end].isnumeric():
             end += 1
         if flag_str[end] != "]":
-            self.log.error(f"Error while parsing flags: ENR not closed")
+            self.log.error(f"Error while parsing flags: ENR not closed: {flag_str}")
             return None, None
         enr_1 = flag_str[num_start + 1:end]
         
         # 2. ENR
         start_2 = end + 1
         if flag_str[start_2] != "[":
-            self.log.error(f"Error while parsing flags: No 2. ENR for loco change")
+            self.log.error(f"Error while parsing flags: No 2. ENR for loco change: {flag_str}")
             return None, None
         # start of ENR 2
         end = start_2 + 1
@@ -255,12 +254,12 @@ class STSApi:
     def _parse_nodes(self, node_list: list) -> List[Node]:
         nodes = []
         for node in node_list:
-            type = NodeType(int(node["@type"]))
+            _type = NodeType(int(node["@type"]))
             name = node["@name"]
             enr = None
             if  "@enr" in node:
                 enr = node["@enr"]
-            nodes.append(Node(type, name, enr))
+            nodes.append(Node(_type, name, enr))
         return nodes
     
     def _parse_connectors(self, connector_list: list, nodes: List[Node]) -> List[Connector]:
