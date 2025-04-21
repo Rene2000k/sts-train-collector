@@ -1,5 +1,6 @@
 import time
 import logging
+import re
 from sts_api.STSApi import STSApi
 from TrainCollection import TrainCollection
 
@@ -11,6 +12,11 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 SLEEP_INTERVAL = 600
+
+
+def sanitize_filename(name: str) -> str:
+    # Replace invalid characters with underscore
+    return re.sub(r'[\\/*?:"<>|]', '_', name)
 
 
 def run():
@@ -25,7 +31,8 @@ def run():
     api.register("STS train collector", "Rene Klemm", "0.0.1", "desc")
     
     signal_box_name = api.get_signal_box_info().name
-    train_collection = TrainCollection(signal_box_name)
+    sanitized_name = sanitize_filename(signal_box_name)
+    train_collection = TrainCollection(sanitized_name)
     
     try:
         while True:
