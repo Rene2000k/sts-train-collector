@@ -1,4 +1,3 @@
-
 import logging
 import os
 import time
@@ -24,7 +23,7 @@ class TrainCollection:
         if os.path.isfile(self.filename):
             self.log.info(f"Loading csv file: {self.filename}")
             
-            with open(self.filename, "r") as file:
+            with open(self.filename, "r", encoding='utf-8') as file:
                 line_list = file.readlines()
                 for line in line_list:
                     if line == self.TITLE_LINE:
@@ -91,7 +90,7 @@ class TrainCollection:
         if not os.path.isfile(self.filename):
             add_title_line = True
             
-        with open(self.filename, "a") as file:
+        with open(self.filename, "a", encoding='utf-8') as file:
             if add_title_line:
                 file.write(self.TITLE_LINE)
             
