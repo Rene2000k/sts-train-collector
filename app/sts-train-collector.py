@@ -46,13 +46,7 @@ def run():
             time.sleep(SLEEP_INTERVAL)
     
     except KeyboardInterrupt:
-        logger.info("Running train collection")
-        train_list = api.get_train_list()
-        for train in train_list:
-            train_timetable = api.get_train_timetable(train.id)
-            train_collection.add_train(train_timetable)
-        train_collection.save()
-        logger.info("Finished train collection")
+        pass
 
 if __name__ == "__main__":
     logger.info("Starting STS Train Collector")
