@@ -4,8 +4,9 @@ This is a plugin for the signal box simulation [Stellwerksim](https://www.stellw
 
 ## Prerequisites 
 
-1. Python >= 3.5 installed
+1. Python >= 3.10 installed
 2. A free user account for Stellwerksim
+3. 1. Run `pip install -r requirements.txt`
 
 ## Usage 
 
